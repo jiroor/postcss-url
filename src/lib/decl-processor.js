@@ -87,7 +87,7 @@ const replaceUrl = (url, dir, options, result, decl) => {
 
     const matchedOptions = matchOptions(asset, options);
 
-    if (!matchedOptions) return;
+    if (!matchedOptions) return Promise.resolve();
 
     const process = (option) => {
         const wrappedUrlProcessor = wrapUrlProcessor(getUrlProcessor(option.url), result, decl);
@@ -95,13 +95,25 @@ const replaceUrl = (url, dir, options, result, decl) => {
         return wrappedUrlProcessor(asset, dir, option);
     };
 
+    let promise = Promise.resolve(asset.url);
+
     if (Array.isArray(matchedOptions)) {
-        matchedOptions.forEach((option) => asset.url = process(option));
+
+        matchedOptions.forEach((option) => {
+            promise = promise.then((newUrl) => {
+                return process(option);
+            });
+        });
     } else {
-        asset.url = process(matchedOptions);
+        promise = promise.then((newUrl) => {
+            return process(matchedOptions);
+        })
     }
 
-    return asset.url;
+    return promise.then((newUrl) => {
+        asset.url = newUrl;
+        return newUrl;
+    });
 };
 
 /**
@@ -118,18 +130,19 @@ const declProcessor = (from, to, options, result, decl) => {
 
     if (!pattern) return;
 
-    decl.value = decl.value
+    decl.value
         .replace(pattern, (matched, before, url, after) => {
-            const newUrl = replaceUrl(url, dir, options, result, decl);
+            replaceUrl(url, dir, options, result, decl)
+                .then((newUrl) => {
+                    if (!newUrl) return matched;
 
-            if (!newUrl) return matched;
+                    if (WITH_QUOTES.test(newUrl) && WITH_QUOTES.test(after)) {
+                        before = before.slice(0, -1);
+                        after = after.slice(1);
+                    }
 
-            if (WITH_QUOTES.test(newUrl) && WITH_QUOTES.test(after)) {
-                before = before.slice(0, -1);
-                after = after.slice(1);
-            }
-
-            return `${before}${newUrl}${after}`;
+                    decl.value = `${before}${newUrl}${after}`;
+                });
         });
 };
 
