@@ -17,9 +17,13 @@ module.exports = postcss.plugin('postcss-url', (options) => {
         const from = opts.from ? path.dirname(opts.from) : '.';
         const to = opts.to ? path.dirname(opts.to) : from;
 
+        let promise = Promise.resolve();
+
         styles.walkDecls((decl) =>
-            declProcessor(from, to, options, result, decl)
+            promise = promise.then(() => declProcessor(from, to, options, result, decl))
         );
+
+        return promise;
     };
 });
 

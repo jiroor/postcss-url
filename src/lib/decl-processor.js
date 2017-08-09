@@ -128,11 +128,13 @@ const declProcessor = (from, to, options, result, decl) => {
     const dir = { from, to, file: getDirDeclFile(decl) };
     const pattern = getPattern(decl);
 
+    let promise = Promise.resolve();
+
     if (!pattern) return;
 
     decl.value
         .replace(pattern, (matched, before, url, after) => {
-            replaceUrl(url, dir, options, result, decl)
+            promise = replaceUrl(url, dir, options, result, decl)
                 .then((newUrl) => {
                     if (!newUrl) return matched;
 
@@ -144,6 +146,8 @@ const declProcessor = (from, to, options, result, decl) => {
                     decl.value = `${before}${newUrl}${after}`;
                 });
         });
+
+    return promise;
 };
 
 module.exports = {
